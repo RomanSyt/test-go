@@ -55,35 +55,35 @@ func (r *Repository) AddCandidate(
 ) (*Candidate, error) {
 
 	if firstName == "" || lastName == "" {
-			return nil, errors.New("invalid name")
+		return nil, errors.New("invalid name")
 	}
 
 	parsedEmail, err := mail.ParseAddress(email)
 	if err != nil {
-			return nil, fmt.Errorf("invalid email: %w", err)
+		return nil, fmt.Errorf("invalid email: %w", err)
 	}
 
 	c := Candidate{
-			ID:        uuid.New(),
-			FirstName: firstName,
-			LastName:  lastName,
-			Email:     *parsedEmail,
-			CreatedAt: time.Now(),
+		ID:        uuid.New(),
+		FirstName: firstName,
+		LastName:  lastName,
+		Email:     *parsedEmail,
+		CreatedAt: time.Now(),
 	}
 
 	_, err = r.db.Exec(`
-			INSERT INTO candidates (id, first_name, last_name, email, created_at)
-			VALUES ($1,$2,$3,$4,$5)
+		INSERT INTO candidates (id, first_name, last_name, email, created_at)
+		VALUES ($1,$2,$3,$4,$5)
 	`,
-			c.ID,
-			c.FirstName,
-			c.LastName,
-			c.Email.Address,
-			c.CreatedAt,
+		c.ID,
+		c.FirstName,
+		c.LastName,
+		c.Email.Address,
+		c.CreatedAt,
 	)
 
 	if err != nil {
-			return nil, err
+		return nil, err
 	}
 
 	return &c, nil
