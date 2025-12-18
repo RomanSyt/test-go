@@ -33,9 +33,16 @@ func main() {
 
 	ctx := context.Background()
 
-	if err := candidates.EnsureSchema(ctx, database); err != nil {
+  repo := candidates.NewRepository(database)
+
+	if err := repo.EnsureSchema(ctx); err != nil {
 		log.Fatal(err)
 	}
+
+  _, err = repo.AddCandidate("John", "Doe", "john@doe.com")
+  if err != nil {
+      log.Fatal(err)
+  }
 
 	log.Println("✅ candidates table ready")
 
