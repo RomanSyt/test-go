@@ -35,6 +35,7 @@ func main() {
 
   mux.HandleFunc("POST /candidates", s.addCandidate)
   mux.HandleFunc("POST /get-candidates", s.getCandidate)
+  mux.HandleFunc("POST /applications", s.addApplication)
 
 
   log.Fatal( http.ListenAndServe(":8080", mux))
@@ -72,7 +73,7 @@ func (s *Server) addCandidate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) getCandidate(w http.ResponseWriter, r *http.Request) {
-	if!validateContentType(w, r) {
+	if !validateContentType(w, r) {
 		return
 	}
 
@@ -117,6 +118,11 @@ func (s *Server) getCandidate(w http.ResponseWriter, r *http.Request) {
 		slog.Error("error writing getCandidate response body", "err", err)
 	}
 }
+func (s *Server) addApplication(w http.ResponseWriter, r *http.Request) {
+  if !validateContentType(w, r) {
+		return
+	}
+}
 
 func convertCandidateToCandidateData(u *candidates.Candidate) *CandidateData {
 	converted := CandidateData{
@@ -127,6 +133,7 @@ func convertCandidateToCandidateData(u *candidates.Candidate) *CandidateData {
 
 	return &converted
 }
+
 
 func validateContentType(w http.ResponseWriter, r *http.Request) bool {
 	contentType := r.Header.Get("Content-Type")
