@@ -31,13 +31,14 @@ func main() {
   candidatesManager := candidates.NewManager()
   applicationsManager := applications.NewManager()
 
-   s := Server{
+  s := Server{
     candidatesManager: candidatesManager,
     applicationsManager: applicationsManager,
   }
 
-   mux := http.NewServeMux()
+  mux := http.NewServeMux()
 
+  mux.HandleFunc("GET /candidates", s.getCandidates)
   mux.HandleFunc("POST /candidates", s.addCandidate)
   mux.HandleFunc("POST /get-candidates", s.getCandidate)
   mux.HandleFunc("POST /applications", s.addApplication)
@@ -123,6 +124,23 @@ func (s *Server) getCandidate(w http.ResponseWriter, r *http.Request) {
 		slog.Error("error writing getCandidate response body", "err", err)
 	}
 }
+
+func (s *Server) getCandidates(w http.ResponseWriter, r *http.Request) {
+  marshalled, err := json.Marshal(s.candidatesManager.Candidates())
+	if err != nil {
+		slog.Error("error marshalling getCandidate response", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+  w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(marshalled)
+	if err != nil {
+		// headers are set by write call, best we can do is log an error
+		slog.Error("error writing getCandidate response body", "err", err)
+	}
+}
+
 func (s *Server) addApplication(w http.ResponseWriter, r *http.Request) {
   if !validateContentType(w, r) {
 		return

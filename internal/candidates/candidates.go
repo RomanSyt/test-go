@@ -27,6 +27,10 @@ func NewManager() *Manager {
 	return &Manager{}
 }
 
+func (m *Manager) Candidates() []Candidate {
+	return m.candidates
+}
+
 func (m *Manager) AddCandidate(firstName string, lastName string, email string) error {
 	if firstName == "" {
 		return fmt.Errorf("invalid first name: %q", firstName)
