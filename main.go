@@ -17,6 +17,11 @@ type CandidateData struct {
   Email string
 }
 
+type ApplicationData struct {
+  CandidateID string
+	Role        string
+}
+
 type Server struct {
   candidatesManager *candidates.Manager
   applicationsManager *applications.Manager
@@ -122,6 +127,31 @@ func (s *Server) addApplication(w http.ResponseWriter, r *http.Request) {
   if !validateContentType(w, r) {
 		return
 	}
+
+  // limit to 1MB
+	requestBody := http.MaxBytesReader(w, r.Body, 1048576)
+
+	decoder := json.NewDecoder(requestBody)
+	decoder.DisallowUnknownFields()
+
+  var applicationData ApplicationData
+
+  err := decoder.Decode(&applicationData)
+
+  if err != nil {
+		slog.Error("error decoding addApplication request body", "err", err)
+		http.Error(w, "bad request body", http.StatusBadRequest)
+		return
+	}
+
+  err = s.applicationsManager.AddApplication(applicationData.CandidateID, applicationData.Role)
+
+  if err != nil {
+		http.Error(w, fmt.Sprintf("error adding application: %v\n", err), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
 }
 
 func convertCandidateToCandidateData(u *candidates.Candidate) *CandidateData {

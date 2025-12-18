@@ -25,19 +25,19 @@ func NewManager() *Manager {
 	return &Manager{}
 }
 
-func (m *Manager) AddApplication(candidateID string, role string) (*Application, error) {
+func (m *Manager) AddApplication(candidateID string, role string)error {
 	if candidateID == "" {
-		return nil, errors.New("candidate id is required")
+		return  errors.New("candidate id is required")
 	}
 
 	if role == "" {
-		return nil, errors.New("role is required")
+		return  errors.New("role is required")
 	}
 
 	candidateUUID, err := uuid.Parse(candidateID)
 
 	if err != nil {
-		return nil, errors.New("candidate id is not valid")
+		return  errors.New("candidate id is not valid")
 	}
 
 	app := Application{
@@ -52,5 +52,5 @@ func (m *Manager) AddApplication(candidateID string, role string) (*Application,
 
 	m.applications = append(m.applications, app)
 
-	return &app, nil
+	return nil
 }
