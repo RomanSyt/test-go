@@ -7,6 +7,7 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"test/internal/applications"
 	"test/internal/candidates"
 )
 
@@ -16,22 +17,32 @@ type CandidateData struct {
   Email string
 }
 
+type ApplicationData struct {
+  CandidateID string
+	Role        string
+}
+
 type Server struct {
   candidatesManager *candidates.Manager
+  applicationsManager *applications.Manager
 }
 
 func main() {
   candidatesManager := candidates.NewManager()
+  applicationsManager := applications.NewManager()
 
-   s := Server{
+  s := Server{
     candidatesManager: candidatesManager,
+    applicationsManager: applicationsManager,
   }
 
-   mux := http.NewServeMux()
+  mux := http.NewServeMux()
 
+  mux.HandleFunc("GET /candidates", s.getCandidates)
   mux.HandleFunc("POST /candidates", s.addCandidate)
   mux.HandleFunc("POST /get-candidates", s.getCandidate)
-
+  mux.HandleFunc("POST /applications", s.addApplication)
+  mux.HandleFunc("GET /applications", s.getApplications)
 
   log.Fatal( http.ListenAndServe(":8080", mux))
 }
@@ -68,7 +79,7 @@ func (s *Server) addCandidate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) getCandidate(w http.ResponseWriter, r *http.Request) {
-	if!validateContentType(w, r) {
+	if !validateContentType(w, r) {
 		return
 	}
 
@@ -111,6 +122,69 @@ func (s *Server) getCandidate(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// headers are set by write call, best we can do is log an error
 		slog.Error("error writing getCandidate response body", "err", err)
+	}
+}
+
+func (s *Server) getCandidates(w http.ResponseWriter, r *http.Request) {
+  marshalled, err := json.Marshal(s.candidatesManager.Candidates())
+	if err != nil {
+		slog.Error("error marshalling getCandidates response", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+  w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(marshalled)
+	if err != nil {
+		// headers are set by write call, best we can do is log an error
+		slog.Error("error writing getCandidates response body", "err", err)
+	}
+}
+
+func (s *Server) addApplication(w http.ResponseWriter, r *http.Request) {
+  if !validateContentType(w, r) {
+		return
+	}
+
+  // limit to 1MB
+	requestBody := http.MaxBytesReader(w, r.Body, 1048576)
+
+	decoder := json.NewDecoder(requestBody)
+	decoder.DisallowUnknownFields()
+
+  var applicationData ApplicationData
+
+  err := decoder.Decode(&applicationData)
+
+  if err != nil {
+		slog.Error("error decoding addApplication request body", "err", err)
+		http.Error(w, "bad request body", http.StatusBadRequest)
+		return
+	}
+
+  err = s.applicationsManager.AddApplication(applicationData.CandidateID, applicationData.Role)
+
+  if err != nil {
+		http.Error(w, fmt.Sprintf("error adding application: %v\n", err), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+}
+
+func (s *Server) getApplications(w http.ResponseWriter, r *http.Request) {
+  marshalled, err := json.Marshal(s.applicationsManager.Applications())
+	if err != nil {
+		slog.Error("error marshalling getApplications response", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+  w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(marshalled)
+	if err != nil {
+		// headers are set by write call, best we can do is log an error
+		slog.Error("error writing getApplications response body", "err", err)
 	}
 }
 
