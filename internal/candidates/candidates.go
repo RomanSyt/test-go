@@ -12,7 +12,7 @@ import (
 var ErrNoResultsFound error = errors.New("no results found")
 
 type Candidate struct {
-	ID        string
+	ID        uuid.UUID
 	FirstName string
 	LastName  string
 	Email     mail.Address
@@ -51,7 +51,7 @@ func (m *Manager) AddCandidate(firstName string, lastName string, email string) 
 	}
 
 	newCandidate := Candidate{
-		ID: uuid.NewString(),
+		ID: uuid.New(),
 		FirstName: firstName,
 		LastName:  lastName,
 		Email:     *parsedAddress,

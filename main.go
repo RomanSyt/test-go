@@ -7,6 +7,7 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"test/internal/applications"
 	"test/internal/candidates"
 )
 
@@ -18,13 +19,16 @@ type CandidateData struct {
 
 type Server struct {
   candidatesManager *candidates.Manager
+  applicationsManager *applications.Manager
 }
 
 func main() {
   candidatesManager := candidates.NewManager()
+  applicationsManager := applications.NewManager()
 
    s := Server{
     candidatesManager: candidatesManager,
+    applicationsManager: applicationsManager,
   }
 
    mux := http.NewServeMux()
