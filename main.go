@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"test/internal/applications"
 	"test/internal/candidates"
 	"test/internal/db"
 
@@ -17,6 +18,7 @@ import (
 
 type Server struct {
   candidates *candidates.Repository
+  applications *applications.Repository
 }
 
 func main() {
@@ -43,6 +45,7 @@ func main() {
 
   s := Server{
     candidates: candidates.NewRepository(database),
+    applications: applications.NewRepository(database),
   }
 
 	if err := s.candidates.EnsureSchema(ctx); err != nil {
@@ -50,6 +53,14 @@ func main() {
 	} else { 
     log.Println("✅ candidates table ready")
   }
+
+
+	if err := s.applications.EnsureSchema(ctx); err != nil {
+		log.Fatal(err)
+	} else { 
+    log.Println("✅ applications table ready")
+  }
+
 
   mux := http.NewServeMux()
 

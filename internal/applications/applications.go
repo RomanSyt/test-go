@@ -1,7 +1,9 @@
 package applications
 
 import (
-	"errors"
+	"context"
+	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,44 +19,29 @@ type Application struct {
 	UpdatedAt   time.Time
 }
 
-type Manager struct {
-	applications []Application
+type Repository struct {
+	db *sql.DB
 }
 
-func NewManager() *Manager {
-	return &Manager{}
+func NewRepository(db *sql.DB) *Repository {
+	return &Repository{db: db}
 }
 
-func (m *Manager) Applications() []Application {
-	return m.applications
-}
-
-func (m *Manager) AddApplication(candidateID string, role string)error {
-	if candidateID == "" {
-		return  errors.New("candidate id is required")
+func (r *Repository) EnsureSchema(ctx context.Context) error {
+	if r.db == nil {
+		return fmt.Errorf("db is nil")
 	}
 
-	if role == "" {
-		return  errors.New("role is required")
-	}
-
-	candidateUUID, err := uuid.Parse(candidateID)
-
-	if err != nil {
-		return  errors.New("candidate id is not valid")
-	}
-
-	app := Application{
-		ID:          uuid.New(),
-		CandidateID: candidateUUID,
-		Role:        role,
-		Status:      "applied",
-		Version:     1,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
-	}
-
-	m.applications = append(m.applications, app)
-
-	return nil
+	_, err := r.db.ExecContext(ctx, `
+		CREATE TABLE IF NOT EXISTS applications (
+		  id UUID PRIMARY KEY,
+		  candidate_id UUID NOT NULL REFERENCES candidates(id),
+		  role TEXT NOT NULL,
+		  status TEXT NOT NULL,
+		  version INT NOT NULL DEFAULT 1,
+		  created_at TIMESTAMP NOT NULL DEFAULT now(),
+		  updated_at TIMESTAMP NOT NULL DEFAULT now()
+		);
+	`)
+	return err
 }
