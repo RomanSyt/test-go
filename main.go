@@ -42,7 +42,7 @@ func main() {
   mux.HandleFunc("POST /candidates", s.addCandidate)
   mux.HandleFunc("POST /get-candidates", s.getCandidate)
   mux.HandleFunc("POST /applications", s.addApplication)
-
+  mux.HandleFunc("GET /applications", s.getApplications)
 
   log.Fatal( http.ListenAndServe(":8080", mux))
 }
@@ -128,7 +128,7 @@ func (s *Server) getCandidate(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getCandidates(w http.ResponseWriter, r *http.Request) {
   marshalled, err := json.Marshal(s.candidatesManager.Candidates())
 	if err != nil {
-		slog.Error("error marshalling getCandidate response", "err", err)
+		slog.Error("error marshalling getCandidates response", "err", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -137,7 +137,7 @@ func (s *Server) getCandidates(w http.ResponseWriter, r *http.Request) {
 	_, err = w.Write(marshalled)
 	if err != nil {
 		// headers are set by write call, best we can do is log an error
-		slog.Error("error writing getCandidate response body", "err", err)
+		slog.Error("error writing getCandidates response body", "err", err)
 	}
 }
 
@@ -172,6 +172,22 @@ func (s *Server) addApplication(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
+func (s *Server) getApplications(w http.ResponseWriter, r *http.Request) {
+  marshalled, err := json.Marshal(s.applicationsManager.Applications())
+	if err != nil {
+		slog.Error("error marshalling getApplications response", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+  w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(marshalled)
+	if err != nil {
+		// headers are set by write call, best we can do is log an error
+		slog.Error("error writing getApplications response body", "err", err)
+	}
+}
+
 func convertCandidateToCandidateData(u *candidates.Candidate) *CandidateData {
 	converted := CandidateData{
 		FirstName: u.FirstName,
@@ -181,7 +197,6 @@ func convertCandidateToCandidateData(u *candidates.Candidate) *CandidateData {
 
 	return &converted
 }
-
 
 func validateContentType(w http.ResponseWriter, r *http.Request) bool {
 	contentType := r.Header.Get("Content-Type")

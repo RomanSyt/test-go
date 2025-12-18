@@ -25,6 +25,10 @@ func NewManager() *Manager {
 	return &Manager{}
 }
 
+func (m *Manager) Applications() []Application {
+	return m.applications
+}
+
 func (m *Manager) AddApplication(candidateID string, role string)error {
 	if candidateID == "" {
 		return  errors.New("candidate id is required")
