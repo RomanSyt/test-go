@@ -64,8 +64,8 @@ func main() {
 
   mux := http.NewServeMux()
 
-  // mux.HandleFunc("GET /candidates", s.getCandidates)
   mux.HandleFunc("POST /candidates", s.addCandidate)
+  mux.HandleFunc("POST /applications", s.addApplication)
 
   log.Fatal( http.ListenAndServe(":8080", mux))
 }
@@ -100,7 +100,48 @@ func (s *Server) addCandidate(w http.ResponseWriter, r *http.Request) {
   
   marshalled, err := json.Marshal(candidate)
   if err != nil {
-    slog.Error("error marshalling getCandidate response", "err", err)
+    slog.Error("error marshalling response", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+  _, err = w.Write(marshalled)
+  if err != nil {
+		slog.Error("error response body", "err", err)
+	}
+}
+
+func (s *Server) addApplication(w http.ResponseWriter, r *http.Request) {
+  contentType := r.Header.Get("Content-Type")
+	if contentType != "application/json" {
+		http.Error(w, fmt.Sprintf("unsupported Content-Type header %q", contentType), http.StatusUnsupportedMediaType)
+		return
+  }
+
+  // limit to 1MB
+	requestBody := http.MaxBytesReader(w, r.Body, 1048576)
+
+	decoder := json.NewDecoder(requestBody)
+	decoder.DisallowUnknownFields()
+
+  var applicationData applications.ApplicationData
+
+  err := decoder.Decode(&applicationData)
+  if err != nil {
+		http.Error(w, fmt.Sprintf("error decoding request body: %v\n", err), http.StatusBadRequest)
+		return
+	}
+
+  application, err := s.applications.AddApplication(applicationData.CandidateID,applicationData.Role)
+  if err != nil {
+		http.Error(w, fmt.Sprintf("error adding candidate: %v\n", err), http.StatusBadRequest)
+		return
+	}
+
+  marshalled, err := json.Marshal(application)
+  if err != nil {
+    slog.Error("error marshalling response", "err", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}

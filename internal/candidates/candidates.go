@@ -47,6 +47,7 @@ func (r *Repository) EnsureSchema(ctx context.Context) error {
 			created_at TIMESTAMP NOT NULL DEFAULT now()
 		);
 	`)
+
 	return err
 }
 
