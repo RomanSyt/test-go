@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/mail"
+	"test/internal/candidates"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,6 +19,17 @@ type Application struct {
 	Version     int
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+}
+
+type ApplicationWithCandidate struct {
+	ID          uuid.UUID
+	CandidateID string
+	Role        string
+	Status      string
+	Version     int
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	Candidate candidates.Candidate
 }
 
 type ApplicationData struct {
@@ -75,4 +88,82 @@ func (r *Repository) AddApplication(
 	)
 
 	return &a, err
+}
+
+func (r *Repository) GetApplications(
+	role *string,
+	status *string,
+	limit int,
+	offset int,
+) ([]ApplicationWithCandidate, error) {
+	rows, err := r.db.Query(
+		`
+			SELECT
+				a.id,
+				a.candidate_id,
+				a.role,
+				a.status,
+				a.version,
+				a.created_at,
+				a.updated_at,
+				c.id,
+				c.first_name,
+				c.last_name,
+				c.email
+			FROM applications a
+			JOIN candidates c
+				ON c.id = a.candidate_id
+			WHERE
+				($1::text IS NULL OR a.role = $1)
+				AND
+				($2::text IS NULL OR a.status = $2)
+			ORDER BY a.created_at DESC
+			LIMIT $3 OFFSET $4
+		`,
+		role,
+		status,
+		limit,
+		offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	applications := make([]ApplicationWithCandidate, 0)
+
+	for rows.Next() {
+		var app ApplicationWithCandidate
+		var email string
+
+		if err := rows.Scan(
+			&app.ID,
+			&app.CandidateID,
+			&app.Role,
+			&app.Status,
+			&app.Version,
+			&app.CreatedAt,
+			&app.UpdatedAt,
+			&app.Candidate.ID,
+			&app.Candidate.FirstName,
+			&app.Candidate.LastName,
+			&email,
+		); err != nil {
+			return nil, err
+		}
+		
+
+		app.Candidate.Email = mail.Address{
+			Address: email,
+		}
+		
+		applications = append(applications, app)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+
+	return applications, nil
 }

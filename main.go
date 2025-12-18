@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strconv"
 	"test/internal/applications"
 	"test/internal/candidates"
 	"test/internal/db"
@@ -66,6 +67,7 @@ func main() {
 
   mux.HandleFunc("POST /candidates", s.addCandidate)
   mux.HandleFunc("POST /applications", s.addApplication)
+  mux.HandleFunc("GET /applications", s.getApplications)
 
   log.Fatal( http.ListenAndServe(":8080", mux))
 }
@@ -150,5 +152,47 @@ func (s *Server) addApplication(w http.ResponseWriter, r *http.Request) {
   _, err = w.Write(marshalled)
   if err != nil {
 		slog.Error("error response body", "err", err)
+	}
+}
+
+func (s *Server) getApplications(w http.ResponseWriter, r *http.Request) {
+  params := r.URL.Query()
+
+  var role *string
+  if v := params.Get("user"); v != "" {
+      role = &v
+  }
+
+  var status *string
+  if v := params.Get("status"); v != "" {
+      status = &v
+  }
+
+  limit := 20
+  if v := params.Get("limit"); v != "" {
+      if parsed, err := strconv.Atoi(v); err == nil {
+          limit = parsed
+      }
+  }
+
+  offset := 0
+  if v := params.Get("offset"); v != "" {
+      if parsed, err := strconv.Atoi(v); err == nil {
+          offset = parsed
+      }
+  }
+
+  applications, err := s.applications.GetApplications(role, status, limit, offset)
+  if err != nil {
+    slog.Error("error GetApplications", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+  w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(applications); err != nil {
+		slog.Error("json encode error", "err", err)
 	}
 }
