@@ -68,6 +68,7 @@ func main() {
   mux.HandleFunc("POST /candidates", s.addCandidate)
   mux.HandleFunc("POST /applications", s.addApplication)
   mux.HandleFunc("GET /applications", s.getApplications)
+  mux.HandleFunc("GET /applications/{id}", s.getApplication)
 
   log.Fatal( http.ListenAndServe(":8080", mux))
 }
@@ -193,6 +194,25 @@ func (s *Server) getApplications(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	if err := json.NewEncoder(w).Encode(applications); err != nil {
+		slog.Error("json encode error", "err", err)
+	}
+}
+
+
+func (s *Server) getApplication(w http.ResponseWriter, r *http.Request) {
+  id := r.PathValue("id")
+
+  application, err := s.applications.GetApplication(id)
+  if err != nil {
+    slog.Error("error GetApplication", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+  w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(application); err != nil {
 		slog.Error("json encode error", "err", err)
 	}
 }

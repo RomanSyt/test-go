@@ -167,3 +167,40 @@ func (r *Repository) GetApplications(
 
 	return applications, nil
 }
+
+func (r *Repository) GetApplication(id string) (*Application, error) {
+	var app Application
+
+	err := r.db.QueryRow(
+		`
+		SELECT
+				id,
+				candidate_id,
+				role,
+				status,
+				version,
+				created_at,
+				updated_at
+			FROM applications
+			WHERE id = $1;
+		`,
+		id,
+	).Scan(
+		&app.ID,
+		&app.CandidateID,
+		&app.Role,
+		&app.Status,
+		&app.Version,
+		&app.CreatedAt,
+		&app.UpdatedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil // or custom NotFound error
+		}
+		return nil, err
+	}
+
+	return &app, nil
+}
