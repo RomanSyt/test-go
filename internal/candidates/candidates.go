@@ -19,6 +19,12 @@ type Candidate struct {
 	CreatedAt time.Time
 }
 
+type CandidateData struct {
+	FirstName string
+	LastName  string
+	Email     string
+}
+
 type Repository struct {
 	db *sql.DB
 }
