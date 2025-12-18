@@ -173,7 +173,7 @@ func (r *Repository) GetApplication(id string) (*Application, error) {
 
 	err := r.db.QueryRow(
 		`
-		SELECT
+			SELECT
 				id,
 				candidate_id,
 				role,
