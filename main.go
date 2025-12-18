@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +10,7 @@ import (
 	"os"
 	"test/internal/applications"
 	"test/internal/candidates"
+	"test/internal/db"
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
@@ -35,29 +35,22 @@ type Server struct {
 func main() {
   _ = godotenv.Load()
 
-  dsn := fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-		os.Getenv("DB_HOST"),
-		os.Getenv("DB_PORT"),
-		os.Getenv("DB_USER"),
-		os.Getenv("DB_PASSWORD"),
-		os.Getenv("DB_NAME"),
-		os.Getenv("DB_SSLMODE"),
-	)
+	cfg := db.Config{
+		Host:     os.Getenv("DB_HOST"),
+		Port:     os.Getenv("DB_PORT"),
+		User:     os.Getenv("DB_USER"),
+		Password: os.Getenv("DB_PASSWORD"),
+		Name:     os.Getenv("DB_NAME"),
+		SSLMode:  os.Getenv("DB_SSLMODE"),
+	}
 
-	db, err := sql.Open("postgres", dsn)
-
+	database, err := db.Open(cfg)
 	if err != nil {
-		log.Fatalf("open db failed: %v", err)
+		log.Fatal(err)
 	}
+	defer database.Close()
 
-	defer db.Close()
-
-  if err := db.Ping(); err != nil {
-		log.Fatalf("db ping failed: %v", err)
-	}
-
-	log.Println("✅ database connected")
+	log.Println("✅ db connected")
 
   // candidatesManager := candidates.NewManager()
   // applicationsManager := applications.NewManager()
