@@ -1,14 +1,19 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
+	"os"
 	"test/internal/applications"
 	"test/internal/candidates"
+
+	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 )
 
 type CandidateData struct {
@@ -28,23 +33,49 @@ type Server struct {
 }
 
 func main() {
-  candidatesManager := candidates.NewManager()
-  applicationsManager := applications.NewManager()
+  _ = godotenv.Load()
 
-  s := Server{
-    candidatesManager: candidatesManager,
-    applicationsManager: applicationsManager,
-  }
+  dsn := fmt.Sprintf(
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_PORT"),
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_PASSWORD"),
+		os.Getenv("DB_NAME"),
+		os.Getenv("DB_SSLMODE"),
+	)
 
-  mux := http.NewServeMux()
+	db, err := sql.Open("postgres", dsn)
 
-  mux.HandleFunc("GET /candidates", s.getCandidates)
-  mux.HandleFunc("POST /candidates", s.addCandidate)
-  mux.HandleFunc("POST /get-candidates", s.getCandidate)
-  mux.HandleFunc("POST /applications", s.addApplication)
-  mux.HandleFunc("GET /applications", s.getApplications)
+	if err != nil {
+		log.Fatalf("open db failed: %v", err)
+	}
 
-  log.Fatal( http.ListenAndServe(":8080", mux))
+	defer db.Close()
+
+  if err := db.Ping(); err != nil {
+		log.Fatalf("db ping failed: %v", err)
+	}
+
+	log.Println("✅ database connected")
+
+  // candidatesManager := candidates.NewManager()
+  // applicationsManager := applications.NewManager()
+
+  // s := Server{
+  //   candidatesManager: candidatesManager,
+  //   applicationsManager: applicationsManager,
+  // }
+
+  // mux := http.NewServeMux()
+
+  // mux.HandleFunc("GET /candidates", s.getCandidates)
+  // mux.HandleFunc("POST /candidates", s.addCandidate)
+  // mux.HandleFunc("POST /get-candidates", s.getCandidate)
+  // mux.HandleFunc("POST /applications", s.addApplication)
+  // mux.HandleFunc("GET /applications", s.getApplications)
+
+  // log.Fatal( http.ListenAndServe(":8080", mux))
 }
 
 func (s *Server) addCandidate(w http.ResponseWriter, r *http.Request) {
