@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/mail"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 var ErrNoResultsFound error = errors.New("no results found")
@@ -49,6 +51,7 @@ func (m *Manager) AddCandidate(firstName string, lastName string, email string) 
 	}
 
 	newCandidate := Candidate{
+		ID: uuid.NewString(),
 		FirstName: firstName,
 		LastName:  lastName,
 		Email:     *parsedAddress,
