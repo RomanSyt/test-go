@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"sync"
 	"test/internal/applications"
 	applicationsevents "test/internal/applicationsEvents"
 	"test/internal/candidates"
@@ -22,6 +23,9 @@ type Server struct {
   candidates *candidates.Repository
   applications *applications.Repository
   applicationsEvents *applicationsevents.Repository
+
+  idempotencyMu sync.Mutex
+	idempotency   map[string][]byte
 }
 
 func main() {
@@ -50,6 +54,8 @@ func main() {
     candidates: candidates.NewRepository(database),
     applications: applications.NewRepository(database),
     applicationsEvents: applicationsevents.NewRepository(database),
+
+    idempotency: make(map[string][]byte),
   }
 
 	if err := s.candidates.EnsureSchema(ctx); err != nil {
@@ -235,6 +241,23 @@ func (s *Server) addApplicationEvent(w http.ResponseWriter, r *http.Request) {
 		return
   }
 
+  key := r.Header.Get("Idempotency-Key")
+	if key == "" {
+		http.Error(w, "missing Idempotency-Key", http.StatusBadRequest)
+		return
+	}
+
+  s.idempotencyMu.Lock()
+	if cached, ok := s.idempotency[key]; ok {
+		s.idempotencyMu.Unlock()
+
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		w.Write(cached)
+		return
+	}
+	s.idempotencyMu.Unlock()
+
   // limit to 1MB
 	requestBody := http.MaxBytesReader(w, r.Body, 1048576)
   
@@ -274,10 +297,17 @@ func (s *Server) addApplicationEvent(w http.ResponseWriter, r *http.Request) {
     Payload: payload,
   })
 
-  w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-
-	if err := json.NewEncoder(w).Encode(updated); err != nil {
-		slog.Error("json encode error", "err", err)
+  response, err := json.Marshal(updated)
+	if err != nil {
+		http.Error(w, "response encode error", http.StatusInternalServerError)
+		return
 	}
+
+	s.idempotencyMu.Lock()
+	s.idempotency[key] = response
+	s.idempotencyMu.Unlock()
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	w.Write(response)
 }
