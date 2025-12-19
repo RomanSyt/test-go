@@ -59,7 +59,7 @@ func (r *Repository) EnsureSchema(ctx context.Context) error {
 	return err
 }
 
-func (r *Repository) Add(event *ApplicationEventData) error {
+func (r *Repository) AddApplicationEvent(event *ApplicationEventData) error {
 	_, err := r.db.Exec(`
 			INSERT INTO application_events (
 				id,

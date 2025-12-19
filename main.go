@@ -248,7 +248,7 @@ func (s *Server) addApplicationEvent(w http.ResponseWriter, r *http.Request) {
     http.Error(w, fmt.Sprintf("error decoding request body: %v\n", err), http.StatusBadRequest)
 		return
 	}
-  
+
   id := r.PathValue("id")
   updated, err := s.applications.PromoteApplication(id, bodyData.ToStatus)
 
@@ -257,6 +257,22 @@ func (s *Server) addApplicationEvent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
+
+  payload, err := json.Marshal(bodyData)
+  if err != nil {
+    http.Error(
+      w,
+      fmt.Sprintf("error encoding payload: %v\n", err),
+      http.StatusInternalServerError,
+    )
+    return
+  }
+
+  s.applicationsEvents.AddApplicationEvent(&applicationsevents.ApplicationEventData{
+    ApplicationID: id,
+    Type: "update",
+    Payload: payload,
+  })
 
   w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
