@@ -28,6 +28,7 @@ type Server struct {
 	idempotency   map[string][]byte
 }
 
+// TODO: use docker_compose
 func main() {
   _ = godotenv.Load()
 
@@ -50,6 +51,7 @@ func main() {
 
 	ctx := context.Background()
 
+  // TODO: use proper naming (NewRepository)
   s := Server{
     candidates: candidates.NewRepository(database),
     applications: applications.NewRepository(database),
@@ -58,6 +60,7 @@ func main() {
     idempotency: make(map[string][]byte),
   }
 
+  // TODO: use migration (https://github.com/pressly/goose)
 	if err := s.candidates.EnsureSchema(ctx); err != nil {
 		log.Fatal(err)
 	} else { 
@@ -90,6 +93,7 @@ func main() {
   log.Fatal( http.ListenAndServe(":8080", mux))
 }
 
+// TODO: move all routes handlers to a separate folder/package
 func (s *Server) addCandidate(w http.ResponseWriter, r *http.Request) {
   contentType := r.Header.Get("Content-Type")
 	if contentType != "application/json" {
