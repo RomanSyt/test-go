@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"test/internal/applications"
+	applicationsevents "test/internal/applicationsEvents"
 	"test/internal/candidates"
 	"test/internal/db"
 
@@ -20,6 +21,7 @@ import (
 type Server struct {
   candidates *candidates.Repository
   applications *applications.Repository
+  applicationsEvents *applicationsevents.Repository
 }
 
 func main() {
@@ -47,6 +49,7 @@ func main() {
   s := Server{
     candidates: candidates.NewRepository(database),
     applications: applications.NewRepository(database),
+    applicationsEvents: applicationsevents.NewRepository(database),
   }
 
 	if err := s.candidates.EnsureSchema(ctx); err != nil {
@@ -60,6 +63,13 @@ func main() {
 		log.Fatal(err)
 	} else { 
     log.Println("✅ applications table ready")
+  }
+
+
+  if err := s.applicationsEvents.EnsureSchema(ctx); err != nil {
+		log.Fatal(err)
+	} else { 
+    log.Println("✅ applications events table ready")
   }
 
 
