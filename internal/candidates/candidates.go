@@ -1,6 +1,8 @@
 package candidates
 
 import (
+	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/mail"
@@ -8,8 +10,6 @@ import (
 
 	"github.com/google/uuid"
 )
-
-var ErrNoResultsFound error = errors.New("no results found")
 
 type Candidate struct {
 	ID        uuid.UUID
@@ -19,60 +19,73 @@ type Candidate struct {
 	CreatedAt time.Time
 }
 
-type Manager struct {
-	candidates []Candidate
+type CandidateData struct {
+	FirstName string
+	LastName  string
+	Email     string
 }
 
-func NewManager() *Manager {
-	return &Manager{}
+type Repository struct {
+	db *sql.DB
 }
 
-func (m *Manager) Candidates() []Candidate {
-	return m.candidates
+func NewRepository(db *sql.DB) *Repository {
+	return &Repository{db: db}
 }
 
-func (m *Manager) AddCandidate(firstName string, lastName string, email string) error {
-	if firstName == "" {
-		return fmt.Errorf("invalid first name: %q", firstName)
+func (r *Repository) EnsureSchema(ctx context.Context) error {
+	if r.db == nil {
+		return fmt.Errorf("db is nil")
 	}
 
-	if lastName == "" {
-		return fmt.Errorf("invalid last name: %q", lastName)
+	_, err := r.db.ExecContext(ctx, `
+		CREATE TABLE IF NOT EXISTS candidates (
+			id UUID PRIMARY KEY,
+			first_name TEXT NOT NULL,
+			last_name TEXT NOT NULL,
+			email TEXT NOT NULL UNIQUE,
+			created_at TIMESTAMP NOT NULL DEFAULT now()
+		);
+	`)
+
+	return err
+}
+
+func (r *Repository) AddCandidate(
+	firstName, lastName, email string,
+) (*Candidate, error) {
+
+	if firstName == "" || lastName == "" {
+		return nil, errors.New("invalid name")
 	}
 
-	existingCandidate, err := m.GetCandidateByName(firstName, lastName)
-	if err != nil && !errors.Is(err, ErrNoResultsFound) {
-		return fmt.Errorf("error checking if candidate is already present: %v", err)
-	}
-
-	if existingCandidate != nil {
-		return errors.New("candidate with this name already exists")
-	}
-
-	parsedAddress, err := mail.ParseAddress(email)
+	parsedEmail, err := mail.ParseAddress(email)
 	if err != nil {
-		return fmt.Errorf("invalid email: %s", email)
+		return nil, fmt.Errorf("invalid email: %w", err)
 	}
 
-	newCandidate := Candidate{
-		ID: uuid.New(),
+	c := Candidate{
+		ID:        uuid.New(),
 		FirstName: firstName,
 		LastName:  lastName,
-		Email:     *parsedAddress,
+		Email:     *parsedEmail,
 		CreatedAt: time.Now(),
 	}
 
-	m.candidates = append(m.candidates, newCandidate)
+	_, err = r.db.Exec(`
+		INSERT INTO candidates (id, first_name, last_name, email, created_at)
+		VALUES ($1,$2,$3,$4,$5)
+	`,
+		c.ID,
+		c.FirstName,
+		c.LastName,
+		c.Email.Address,
+		c.CreatedAt,
+	)
 
-	return nil
-}
-
-func (m *Manager) GetCandidateByName(first string, last string) (*Candidate, error) {
-	for i, candidate := range m.candidates {
-		if candidate.FirstName == first && candidate.LastName == last {
-			result := m.candidates[i]
-			return &result, nil
-		}
+	if err != nil {
+		return nil, err
 	}
-	return nil, ErrNoResultsFound
+
+	return &c, nil
 }
