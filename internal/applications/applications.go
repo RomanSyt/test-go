@@ -3,6 +3,7 @@ package applications
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/mail"
 	"test/internal/candidates"
@@ -203,4 +204,86 @@ func (r *Repository) GetApplication(id string) (*Application, error) {
 	}
 
 	return &app, nil
+}
+
+func (r *Repository) PromoteApplication(id string, status string) (*Application, error) {
+	application, err := r.GetApplication(id)
+	if err != nil {
+		return nil, err
+	}
+
+	if application == nil {
+		return application, err
+	}
+
+	if !canTransition(application.Status, status) {
+		return nil, fmt.Errorf(
+			"invalid status transition: %s → %s",
+			application.Status,
+			status,
+		)
+	} 
+
+	var updated Application
+	err = r.db.QueryRow(`
+			UPDATE applications
+			SET
+				status = $1,
+				version = version + 1,
+				updated_at = now()
+			WHERE id = $2
+			RETURNING
+				id,
+				candidate_id,
+				role,
+				status,
+				version,
+				created_at,
+				updated_at;
+		`,
+		status,
+		application.ID,
+
+	).Scan(
+		&updated.ID,
+		&updated.CandidateID,
+		&updated.Role,
+		&updated.Status,
+		&updated.Version,
+		&updated.CreatedAt,
+		&updated.UpdatedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New("application was updated concurrently")
+		}
+		return nil, err
+	}
+
+	return &updated, nil
+}
+
+var allowedTransitions = map[string][]string{
+	"applied":   {"screening", "rejected"},
+	"screening": {"interview", "rejected"},
+	"interview": {"offer", "rejected"},
+	"offer":     {"hired", "rejected"},
+	"hired":     {},
+	"rejected":  {},
+}
+
+func canTransition(from, to string) bool {
+	nextStatuses, ok := allowedTransitions[from]
+	if !ok {
+		return false
+	}
+
+	for _, status := range nextStatuses {
+		if status == to {
+			return true
+		}
+	}
+
+	return false
 }

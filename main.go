@@ -79,6 +79,7 @@ func main() {
   mux.HandleFunc("POST /applications", s.addApplication)
   mux.HandleFunc("GET /applications", s.getApplications)
   mux.HandleFunc("GET /applications/{id}", s.getApplication)
+  mux.HandleFunc("POST /applications/{id}/transition", s.addApplicationEvent)
 
   log.Fatal( http.ListenAndServe(":8080", mux))
 }
@@ -223,6 +224,44 @@ func (s *Server) getApplication(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	if err := json.NewEncoder(w).Encode(application); err != nil {
+		slog.Error("json encode error", "err", err)
+	}
+}
+
+func (s *Server) addApplicationEvent(w http.ResponseWriter, r *http.Request) {
+  contentType := r.Header.Get("Content-Type")
+	if contentType != "application/json" {
+		http.Error(w, fmt.Sprintf("unsupported Content-Type header %q", contentType), http.StatusUnsupportedMediaType)
+		return
+  }
+
+  // limit to 1MB
+	requestBody := http.MaxBytesReader(w, r.Body, 1048576)
+  
+	decoder := json.NewDecoder(requestBody)
+	decoder.DisallowUnknownFields()
+  
+  var bodyData applicationsevents.ApplicationEventBody
+  
+  err := decoder.Decode(&bodyData)
+  if err != nil {
+    http.Error(w, fmt.Sprintf("error decoding request body: %v\n", err), http.StatusBadRequest)
+		return
+	}
+  
+  id := r.PathValue("id")
+  updated, err := s.applications.PromoteApplication(id, bodyData.ToStatus)
+
+  if err != nil {
+    slog.Error("error addApplicationEvent", "err", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+  w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(updated); err != nil {
 		slog.Error("json encode error", "err", err)
 	}
 }

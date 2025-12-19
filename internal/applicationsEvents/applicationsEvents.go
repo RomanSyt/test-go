@@ -23,6 +23,11 @@ type ApplicationEventData struct {
 	Payload []byte
 }
 
+type ApplicationEventBody struct {
+	ToStatus string
+	Reason string
+}
+
 type Repository struct {
 	db *sql.DB
 }
@@ -38,7 +43,7 @@ func (r *Repository) EnsureSchema(ctx context.Context) error {
 	}
 
 	_, err := r.db.ExecContext(ctx, `
-		CREATE TABLE application_events (
+		CREATE TABLE IF NOT EXISTS application_events (
     	id UUID PRIMARY KEY,
     	application_id UUID NOT NULL,
     	type TEXT NOT NULL,
